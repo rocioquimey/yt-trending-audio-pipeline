@@ -3,6 +3,7 @@ import json
 from datetime import datetime
 from googleapiclient.discovery import build
 from dotenv import load_dotenv
+from datetime import datetime, timedelta, timezone
 
 load_dotenv()
 
@@ -37,10 +38,9 @@ def get_trending_videos(region_code: str, max_results: int = 50) -> list:
         })
     return videos
 
-
-def get_videos_by_keyword(keyword: str, region_code: str = None, max_results: int = 50) -> list:
+def get_videos_by_keyword(keyword: str, region_code: str = None, period: str = None, max_results: int = 50) -> list:
     youtube = build("youtube", "v3", developerKey=API_KEY)
-    
+
     params = {
         "part": "snippet",
         "q": keyword,
@@ -48,14 +48,24 @@ def get_videos_by_keyword(keyword: str, region_code: str = None, max_results: in
         "order": "viewCount",
         "maxResults": max_results
     }
+
     if region_code:
         params["regionCode"] = region_code
+
+    if period == "week":
+        since = datetime.now(timezone.utc) - timedelta(days=7)
+        params["publishedAfter"] = since.strftime("%Y-%m-%dT%H:%M:%SZ")
+    elif period == "month":
+        since = datetime.now(timezone.utc) - timedelta(days=30)
+        params["publishedAfter"] = since.strftime("%Y-%m-%dT%H:%M:%SZ")
+    elif period == "today":
+        since = datetime.now(timezone.utc) - timedelta(days=1)
+        params["publishedAfter"] = since.strftime("%Y-%m-%dT%H:%M:%SZ")
 
     request = youtube.search().list(**params)
     response = request.execute()
 
     video_ids = [item["id"]["videoId"] for item in response["items"]]
-    
     stats_request = youtube.videos().list(
         part="statistics",
         id=",".join(video_ids)
@@ -76,11 +86,10 @@ def get_videos_by_keyword(keyword: str, region_code: str = None, max_results: in
             "view_count": stats_map.get(vid_id, {}).get("viewCount", 0),
             "mode": "keyword",
             "keyword": keyword,
+            "period": period,
             "fetched_at": datetime.utcnow().isoformat()
-
         })
     return videos
-
 
 def fetch_all_regions() -> list:
     all_videos = []
@@ -90,15 +99,15 @@ def fetch_all_regions() -> list:
         all_videos.extend(videos)
     return all_videos
 
-
 if __name__ == "__main__":
     import sys
 
     if len(sys.argv) > 1:
         keyword = sys.argv[1]
         region = sys.argv[2] if len(sys.argv) > 2 else None
-        print(f"Searching keyword: '{keyword}' region: {region or 'global'}")
-        videos = get_videos_by_keyword(keyword, region)
+        period = sys.argv[3] if len(sys.argv) > 3 else None
+        print(f"Searching keyword: '{keyword}' region: {region or 'global'} period: {period or 'all time'}")
+        videos = get_videos_by_keyword(keyword, region, period)
     else:
         print("Fetching trending videos for all LATAM regions...")
         videos = fetch_all_regions()

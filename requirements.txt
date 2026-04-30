@@ -1,0 +1,5 @@
+﻿yt-dlp
+faster-whisper
+google-api-python-client
+snowflake-connector-python
+python-dotenv

@@ -4,3 +4,6 @@ __pycache__/
 data/
 logs/
 .DS_Store
+ffmpeg-8.1-essentials_build/
+data/
+*.mp3
